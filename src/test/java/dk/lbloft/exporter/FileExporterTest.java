@@ -12,7 +12,7 @@ public class FileExporterTest {
 
     @Test
     public void dumpSimple() {
-        ArrayList<CanListener> listeners = new ArrayList<>();
+        ArrayList<CanListener<?>> listeners = new ArrayList<>();
         listeners.add(CanListener.getByte("Test", 0, 0x001));
         listeners.add(CanListener.getByte("Foo", 0, 0x002));
         listeners.add(CanListener.getByte("Bar", 0, 0x003));
@@ -30,7 +30,7 @@ public class FileExporterTest {
         export(exporter, listeners, 0x02);
     }
 
-    private void export(CanExporter exporter, List<CanListener> listeners, int value) {
+    private void export(CanExporter exporter, List<CanListener<?>> listeners, int value) {
         for (CanListener listener : listeners) {
             listener.newFrame(0x001, ByteBuffer.wrap(new byte[] {(byte)value}));
         }

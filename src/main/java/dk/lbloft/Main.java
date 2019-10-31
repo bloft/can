@@ -25,7 +25,7 @@ public class Main implements Callable<Integer> {
     private String bus;
 
     private Bus busConnection;
-    private ArrayList<CanListener> listeners = new ArrayList<>();
+    private ArrayList<CanListener<?>> listeners = new ArrayList<>();
     private ArrayList<CanExporter> exporters = new ArrayList<>();
 
     public static void main(String[] args) {
@@ -89,8 +89,8 @@ public class Main implements Callable<Integer> {
         return 0;
     }
 
-    public ArrayList<CanListener> buildListeners() {
-        ArrayList<CanListener> listeners = new ArrayList<>();
+    public ArrayList<CanListener<?>> buildListeners() {
+        ArrayList<CanListener<?>> listeners = new ArrayList<>();
 
         listeners.add(CanListener.getByte( "Speed", 0, 0x3D0));
         listeners.add(CanListener.getShort("RPM", 0, 0x1C4).setMapping(i -> (int)(i*1.25)));

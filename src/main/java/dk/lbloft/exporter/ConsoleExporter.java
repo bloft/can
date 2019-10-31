@@ -8,7 +8,7 @@ import java.util.Date;
 
 public class ConsoleExporter implements CanExporter {
     @Override
-    public void export(Collection<CanListener> listeners) {
+    public void export(Collection<CanListener<?>> listeners) {
         Console.out.clearScreen();
         Console.out.printTitle("Can data");
         boolean even = true;

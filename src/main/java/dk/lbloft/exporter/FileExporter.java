@@ -22,7 +22,7 @@ public class FileExporter implements CanExporter {
     }
 
     @Override
-    public void export(Collection<CanListener> listeners) {
+    public void export(Collection<CanListener<?>> listeners) {
         if(isFirst) {
             writeLine(listeners, l -> l.getName());
             isFirst = false;
@@ -31,7 +31,7 @@ public class FileExporter implements CanExporter {
     }
 
     @SneakyThrows
-    private void writeLine(Collection<CanListener> listeners, Function<CanListener, Object> function) {
+    private void writeLine(Collection<CanListener<?>> listeners, Function<CanListener, Object> function) {
         StringBuilder sb = new StringBuilder();
         for (CanListener listener : listeners) {
             Object element = function.apply(listener);
