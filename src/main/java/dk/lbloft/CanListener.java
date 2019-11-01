@@ -60,7 +60,9 @@ public abstract class CanListener<T> implements FrameListener {
      * @param data Can data (up to 8 bytes)
      * @return The calculated value
      */
-    public abstract T handle(int id, ByteBuffer data);
+    public T handle(int id, ByteBuffer data) {
+        return null;
+    }
 
     /**
      * Tricker when the value is changed
@@ -112,7 +114,7 @@ public abstract class CanListener<T> implements FrameListener {
     }
 
     public static CanListener<String> getHex(Integer id, int pos, int size) {
-        return new CanListener<String>(id.toString(), id) {
+        return new CanListener<String>(String.format("%03x", id), id) {
             @Override
             public String handle(int id, ByteBuffer data) {
                 StringBuilder sb = new StringBuilder();

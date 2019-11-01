@@ -9,6 +9,7 @@ import picocli.CommandLine;
 import java.io.File;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.concurrent.Callable;
 
 @CommandLine.Command(name = "can")
@@ -23,6 +24,9 @@ public class Main implements Callable<Integer> {
 
     @CommandLine.Option(names = {"-b", "--bus"}, description = "The name of the bus", defaultValue = "can0")
     private String bus;
+
+    @CommandLine.Option(names = {"-o", "--out-dir"}, description = "Dir to dump trip logs", defaultValue = "trip")
+    private File outDir;
 
     private Bus busConnection;
     private ArrayList<CanListener<?>> listeners = new ArrayList<>();
@@ -57,13 +61,14 @@ public class Main implements Callable<Integer> {
 
         listeners = buildListeners();
 
+        exporters.add(new ConsoleExporter());
+
+        outDir.mkdirs();
+        exporters.add(new FileExporter(new File(outDir, String.format("trip-%1$tF-%1$tR.log", new Date()))));
+
         for (CanListener listener : listeners) {
             add(listener);
         }
-
-        exporters.add(new ConsoleExporter());
-        exporters.add(new FileExporter(new File("test.out")));
-
 
         /* Starting the TimeSource will make the Bus connect to the socketcand
          * and deliver Frames. After two seconds the connections are terminated.
@@ -89,49 +94,13 @@ public class Main implements Callable<Integer> {
         return 0;
     }
 
-    public ArrayList<CanListener<?>> buildListeners() {
+    public static ArrayList<CanListener<?>> buildListeners() {
         ArrayList<CanListener<?>> listeners = new ArrayList<>();
 
         listeners.add(CanListener.getByte( "Speed", 0, 0x3D0));
         listeners.add(CanListener.getShort("RPM", 0, 0x1C4).setMapping(i -> (int)(i*1.25)));
         listeners.add(CanListener.getInt("Trip", 4, 0x611));
         listeners.add(CanListener.getShort("Left (km)", 5, 0x619));
-
-        listeners.add(CanListener.getBit("Left Door", 5, 0x20, "Open", "Close", 0x620));
-        listeners.add(CanListener.getBit("Right Door", 5, 0x10, "Open", "Close", 0x620));
-        listeners.add(CanListener.getBit("Handbreak", 7, 0x20, "On", "Off", 0x620));
-
-        listeners.add(new CanListener<String>("Speed Limiter", 0x3C5) {
-            public String handle(int id, ByteBuffer data) {
-                switch (data.get(0) & 0xFF) {
-                    case 0x00: return "Off";
-                    case 0x80: return String.format("%s", data.get(1) & 0xFF);
-                    case 0xC0: return String.format("%s disabled", data.get(1) & 0xFF);
-                    case 0xE0: return String.format("%s error", data.get(1) & 0xFF);
-                    default: return "Unknown";
-                }
-            }
-        });
-
-        listeners.add(new CanListener<String>("Info1", 0x620) {
-            public String handle(int id, ByteBuffer data) {
-                String value = "";
-                for(int i = 0; i < 5; i++) {
-                    value += " " + String.format("%8s", Integer.toBinaryString(data.get(i) & 0xFF)).replace(' ', '0');
-                }
-                return value.trim();
-            }
-        });
-
-        listeners.add(new CanListener<String>("Info2", 0x620) {
-            public String handle(int id, ByteBuffer data) {
-                String value = "";
-                for(int i = 4; i < 8; i++) {
-                    value += " " + String.format("%8s", Integer.toBinaryString(data.get(i) & 0xFF)).replace(' ', '0');
-                }
-                return value.trim();
-            }
-        });
 
         listeners.add(new CanListener<Double>("Fuel Used", 0x3D3) {
             private long last = -1;
@@ -145,7 +114,7 @@ public class Main implements Callable<Integer> {
                     return 0.0;
                 } else {
                     int maf = data.getShort() & 0xFFFF;
-                    return getValue() + (maf * (3600 / (14.7 * 740)) * (diff / 1000));
+                    return getValue() + (maf / (14.7 * 740) * (diff / 1000));
                 }
             }
         });
@@ -161,6 +130,47 @@ public class Main implements Callable<Integer> {
                 return Math.round(maf * (3600 / (14.7 * 740)) / speed * 100) / 100.0;  // Calc l/100km
             }
         });
+
+        listeners.add(new CanListener<Integer>("Distance", 0x611) {
+            private int start = 0;
+
+            @Override
+            public Integer handle(int id, ByteBuffer data) {
+                if(start == 0) {
+                    start = data.getInt(4) & 0XFFFF;
+                }
+                return (data.getInt(4) & 0XFFFF) - start;
+            }
+        });
+
+        listeners.add(new CanListener<String>("RunTime") {
+            long startTime = System.currentTimeMillis();
+
+            @Override
+            public String getValue() {
+                return Console.toPrittyTime(System.currentTimeMillis() - startTime);
+            }
+        });
+
+        listeners.add(CanListener.getByte( "Speed Limiter", 1, 0x3C5));
+        listeners.add(new CanListener<String>("Speed Limiter Status", 0x3C5) {
+            public String handle(int id, ByteBuffer data) {
+                switch (data.get(0) & 0xFF) {
+                    case 0x00: return "Off";
+                    case 0x80: return "On";
+                    case 0xC0: return "Disabled";
+                    case 0xE0: return "Error";
+                    default: return "Unknown";
+                }
+            }
+        });
+
+        listeners.add(CanListener.getBit("LF Door", 5, 0x20, "Open", "Closed", 0x620));
+        listeners.add(CanListener.getBit("RF Door", 5, 0x10, "Open", "Closed", 0x620));
+        listeners.add(CanListener.getBit("Handbreak", 7, 0x20, "On", "Off", 0x620));
+
+        listeners.add(CanListener.getHex(0x619));
+        listeners.add(CanListener.getHex(0x620));
 
         return listeners;
     }

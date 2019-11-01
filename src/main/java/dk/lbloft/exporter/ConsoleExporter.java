@@ -12,10 +12,13 @@ public class ConsoleExporter implements CanExporter {
         Console.out.clearScreen();
         Console.out.printTitle("Can data");
         boolean even = true;
-        int w = Console.out.getWidth() - 31;
+        int w = Console.out.getWidth();
         for (CanListener listener : listeners) {
             if(listener.getValue() != null) {
-                Console.out.println(String.format("%-30s %" + w + "s", listener.getName(), listener.getValue()), Console.Color.Default, even ? Console.Color.Default : Console.Color.DarkGray);
+                Console.out.println(
+                        String.format("%s %" + (w - listener.getName().length() -1) + "s", listener.getName(), listener.getValue()),
+                        Console.Color.Default, even ? Console.Color.Default : Console.Color.DarkGray
+                );
             }
             even = !even;
         }
